@@ -230,4 +230,4 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     
     # Run with uvicorn
-    uvicorn.run("api.app:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("API.app:app", host="0.0.0.0", port=port, reload=True)
