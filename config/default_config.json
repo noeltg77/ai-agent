@@ -1,0 +1,14 @@
+{
+  "api": {
+    "base_url": "https://api.openai.com/v1",
+    "timeout": 30
+  },
+  "models": {
+    "default": "gpt-4o",
+    "alternatives": ["gpt-4-turbo", "gpt-3.5-turbo"]
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}
