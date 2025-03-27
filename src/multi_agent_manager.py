@@ -21,7 +21,7 @@ from src.prompt_loader import PromptLoader
 from src.verification_sdk import Verification
 
 # Import this dynamically to avoid circular imports
-from api.session import AgentSession
+from API.session import AgentSession
 
 class MultiAgentManager:
     def __init__(self, user_location: Dict[str, Any] = None, verification_enabled: bool = True, max_verification_attempts: int = 3):
