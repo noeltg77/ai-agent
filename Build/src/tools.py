@@ -51,25 +51,31 @@ def calculate_days_between(start_date: str, end_date: str) -> str:
     except ValueError as e:
         return f"Error parsing dates: {str(e)}. Please ensure dates are in format YYYY-MM-DD."
 
-@function_tool(use_strict_schema=False)
-def format_data(ctx: RunContextWrapper[Any], data: Dict[str, Any], format_type: str) -> str:
+@function_tool
+def format_data(ctx: RunContextWrapper[Any], data_str: str, format_type: str) -> str:
     """
     Format data into various formats.
     
     Args:
-        data: Dictionary of data to format
+        data_str: JSON string representation of data to format
         format_type: The format to convert to (json or text)
     
     Returns:
         Formatted data as a string
     """
-    if format_type.lower() == "json":
-        return json.dumps(data, indent=2)
-    elif format_type.lower() == "text":
-        # Convert dictionary to text format
-        return "\n".join([f"{key}: {value}" for key, value in data.items()])
-    else:
-        return f"Unsupported format: {format_type}. Please use 'json' or 'text'."
+    try:
+        # Parse the JSON string into a Python dictionary
+        data = json.loads(data_str)
+        
+        if format_type.lower() == "json":
+            return json.dumps(data, indent=2)
+        elif format_type.lower() == "text":
+            # Convert dictionary to text format
+            return "\n".join([f"{key}: {value}" for key, value in data.items()])
+        else:
+            return f"Unsupported format: {format_type}. Please use 'json' or 'text'."
+    except json.JSONDecodeError:
+        return f"Error: Invalid JSON string provided. Please provide a valid JSON string."
         
 @function_tool
 async def generate_image(
