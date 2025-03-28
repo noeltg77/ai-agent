@@ -188,11 +188,46 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                         {"role": "assistant", "content": final_output}
                     ]
                 
-                # Convert to Pydantic model format
-                conversation_history = [
-                    ConversationMessage(role=msg["role"], content=msg["content"])
-                    for msg in session.conversation_history
-                ]
+                # Convert to model format - handle complex message types from the SDK
+                conversation_history = []
+                for msg in session.conversation_history:
+                    try:
+                        # Handle regular messages with role and content
+                        if "role" in msg and "content" in msg:
+                            # If content is a string, use it directly
+                            if isinstance(msg["content"], str):
+                                conversation_history.append(
+                                    ConversationMessage(role=msg["role"], content=msg["content"])
+                                )
+                            # If content is a list (complex message structures), try to extract text
+                            elif isinstance(msg["content"], list):
+                                # For assistant messages with complex content structure
+                                extracted_content = ""
+                                for content_item in msg["content"]:
+                                    if isinstance(content_item, dict) and "text" in content_item:
+                                        extracted_content += content_item["text"] + "\n"
+                                if extracted_content:
+                                    conversation_history.append(
+                                        ConversationMessage(role=msg["role"], content=extracted_content.strip())
+                                    )
+                        # Handle function calls
+                        elif "type" in msg and msg.get("type") == "function_call":
+                            # Add function calls as system messages
+                            call_description = f"Function call: {msg.get('name', 'unknown')}"
+                            if "arguments" in msg:
+                                call_description += f" with arguments: {msg['arguments']}"
+                            conversation_history.append(
+                                ConversationMessage(role="system", content=call_description)
+                            )
+                        # Handle function call outputs
+                        elif "type" in msg and msg.get("type") == "function_call_output":
+                            if "output" in msg:
+                                conversation_history.append(
+                                    ConversationMessage(role="system", content=f"Function output: {msg['output']}")
+                                )
+                    except Exception as e:
+                        print(f"Warning: Error processing message for conversation history: {e}")
+                        # Skip this message if it can't be processed
                 
                 return SessionResponse(
                     session_id=session_id,
@@ -315,11 +350,31 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                     # Debug log after update
                     print(f"Session {session_id} conversation history after update: {session.conversation_history}")
                     
-                    # Convert to model format
-                    conversation_history = [
-                        ConversationMessage(role=msg["role"], content=msg["content"])
-                        for msg in session.conversation_history
-                    ]
+                    # Convert to model format - handle complex message types from the SDK
+                    conversation_history = []
+                    for msg in session.conversation_history:
+                        try:
+                            # Only include messages that have both role and content as simple fields
+                            if "role" in msg and "content" in msg:
+                                # If content is a string, use it directly
+                                if isinstance(msg["content"], str):
+                                    conversation_history.append(
+                                        ConversationMessage(role=msg["role"], content=msg["content"])
+                                    )
+                                # If content is a list (complex message structures), try to extract text
+                                elif isinstance(msg["content"], list):
+                                    # For assistant messages with complex content structure
+                                    extracted_content = ""
+                                    for content_item in msg["content"]:
+                                        if isinstance(content_item, dict) and "text" in content_item:
+                                            extracted_content += content_item["text"] + "\n"
+                                    if extracted_content:
+                                        conversation_history.append(
+                                            ConversationMessage(role=msg["role"], content=extracted_content.strip())
+                                        )
+                        except Exception as e:
+                            print(f"Warning: Error processing message for conversation history: {e}")
+                            # Skip this message if it can't be processed
                     
                     # Return the response
                     return SessionResponse(
