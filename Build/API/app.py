@@ -223,10 +223,11 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks, api_k
                     # This is a minimal implementation using direct run
                     # that avoids complex result structure handling
                     try:
-                        # Try the new-style Runner call first
+                        # Try the new-style Runner call first - CRITICAL: pass the conversation history properly
+                        # This is what ensures the agent maintains context between interactions
                         result = await Runner.run(
                             session.orchestrator_agent, 
-                            current_input,
+                            current_input,  # This contains the conversation history + new user input
                             context=request.context
                         )
                         
@@ -249,9 +250,23 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks, api_k
                         
                         # Ultra-simple fallback: call the agent directly
                         # This bypasses all complex result handling
-                        response = await session.orchestrator_agent.generate(current_input)
+                        # We still need to format the conversation history properly when using .generate
+                        formatted_input = ""
+                        if isinstance(current_input, list):
+                            # Format conversation history for direct call
+                            formatted_input = "\n\n".join([
+                                f"{msg['role'].upper()}: {msg['content']}" 
+                                for msg in current_input
+                            ])
+                        else:
+                            formatted_input = current_input
+                        
+                        response = await session.orchestrator_agent.generate(formatted_input)
                         final_output = response.text
             
+                # Debug log to see what's happening with the conversation history
+                print(f"Session {session_id} conversation history before update: {session.conversation_history}")
+                
                 # Super simple conversation history update
                 if session.conversation_history:
                     new_conversation = session.conversation_history + [
@@ -266,6 +281,9 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks, api_k
                 
                 # Save the new conversation history
                 session.conversation_history = new_conversation
+                
+                # Debug log after update
+                print(f"Session {session_id} conversation history after update: {session.conversation_history}")
                 
                 # Convert to model format
                 conversation_history = [
