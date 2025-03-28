@@ -155,9 +155,16 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
         try:
             # Prepare input with conversation history if available
             if session.conversation_history:
-                current_input = session.conversation_history + [{"role": "user", "content": request.input}]
+                # Make sure we're not duplicating user messages
+                # The session.conversation_history already contains previous turns in the format:
+                # [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+                # So we just need to add the new user message
+                current_input = session.conversation_history.copy() + [{"role": "user", "content": request.input}]
+                print(f"DEBUG: Using conversation history: {current_input}")
             else:
+                # First message - just use the raw input as a string
                 current_input = request.input
+                print(f"DEBUG: First message, no history: {current_input}")
             
             # Process with or without verification based on request
             if request.use_verification:
@@ -205,11 +212,21 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                         try:
                             # Try the new-style Runner call first - CRITICAL: pass the conversation history properly
                             # This is what ensures the agent maintains context between interactions
+                            # Note: current_input is either a string (first message) or a list of chat messages
+                            print(f"DEBUG: Running with input type: {type(current_input)}")
                             result = await Runner.run(
                                 session.orchestrator_agent, 
                                 current_input,  # This contains the conversation history + new user input
                                 context=request.context
                             )
+                            
+                            # For debugging - check what the expected input format would be for next turn
+                            if hasattr(result, 'to_input_list') and callable(result.to_input_list):
+                                try:
+                                    next_turn_input = result.to_input_list()
+                                    print(f"DEBUG: Next turn input list would be: {next_turn_input}")
+                                except Exception as e:
+                                    print(f"DEBUG: Error getting next turn input list: {str(e)}")
                             
                             # Attempt to get the final output with graceful degradation
                             if hasattr(result, 'final_output'):
@@ -247,20 +264,53 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                     # Debug log to see what's happening with the conversation history
                     print(f"Session {session_id} conversation history before update: {session.conversation_history}")
                     
-                    # Super simple conversation history update
-                    if session.conversation_history:
-                        new_conversation = session.conversation_history + [
-                            {"role": "user", "content": request.input},
-                            {"role": "assistant", "content": final_output}
-                        ]
-                    else:
-                        new_conversation = [
-                            {"role": "user", "content": request.input},
-                            {"role": "assistant", "content": final_output}
-                        ]
-                    
-                    # Save the new conversation history
-                    session.conversation_history = new_conversation
+                    # Following the SDK pattern for conversation history
+                    try:
+                        # If we got a result from Runner.run, use the proper method to get the conversation history
+                        if hasattr(result, 'to_input_list') and callable(result.to_input_list):
+                            try:
+                                # This is the recommended way to get the conversation history from the SDK
+                                # It properly formats all the turns, tools calls, etc.
+                                session.conversation_history = result.to_input_list()
+                                print(f"DEBUG: Updated conversation history using result.to_input_list()")
+                            except Exception as e:
+                                print(f"DEBUG: Error updating conversation history from result: {str(e)}. Using fallback.")
+                                # Fallback to manual update
+                                if session.conversation_history:
+                                    session.conversation_history = session.conversation_history + [
+                                        {"role": "user", "content": request.input},
+                                        {"role": "assistant", "content": final_output}
+                                    ]
+                                else:
+                                    session.conversation_history = [
+                                        {"role": "user", "content": request.input},
+                                        {"role": "assistant", "content": final_output}
+                                    ]
+                        else:
+                            # Manual update if no result.to_input_list method
+                            if session.conversation_history:
+                                session.conversation_history = session.conversation_history + [
+                                    {"role": "user", "content": request.input},
+                                    {"role": "assistant", "content": final_output}
+                                ]
+                            else:
+                                session.conversation_history = [
+                                    {"role": "user", "content": request.input},
+                                    {"role": "assistant", "content": final_output}
+                                ]
+                    except Exception as e:
+                        print(f"DEBUG: General error updating conversation history: {str(e)}. Using minimal fallback.")
+                        # Ultimate fallback
+                        if session.conversation_history:
+                            session.conversation_history = session.conversation_history + [
+                                {"role": "user", "content": request.input},
+                                {"role": "assistant", "content": final_output}
+                            ]
+                        else:
+                            session.conversation_history = [
+                                {"role": "user", "content": request.input},
+                                {"role": "assistant", "content": final_output}
+                            ]
                     
                     # Debug log after update
                     print(f"Session {session_id} conversation history after update: {session.conversation_history}")
@@ -268,7 +318,7 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                     # Convert to model format
                     conversation_history = [
                         ConversationMessage(role=msg["role"], content=msg["content"])
-                        for msg in new_conversation
+                        for msg in session.conversation_history
                     ]
                     
                     # Return the response
