@@ -51,7 +51,7 @@ def calculate_days_between(start_date: str, end_date: str) -> str:
     except ValueError as e:
         return f"Error parsing dates: {str(e)}. Please ensure dates are in format YYYY-MM-DD."
 
-@function_tool
+@function_tool(use_strict_schema=False)
 def format_data(ctx: RunContextWrapper[Any], data: Dict[str, Any], format_type: str) -> str:
     """
     Format data into various formats.
