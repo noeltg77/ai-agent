@@ -16,7 +16,7 @@ if api_key:
 
 from agents import Agent, Runner, trace, ItemHelpers, gen_trace_id, WebSearchTool
 
-from src.tools import get_current_time, calculate_days_between, format_data, generate_image
+from src.tools import get_current_time, calculate_days_between, format_data, generate_image, get_todays_date
 from src.prompt_loader import PromptLoader
 from src.verification_sdk import Verification
 
@@ -120,6 +120,7 @@ class MultiAgentManager:
                 
                 # Function tools
                 get_current_time,
+                get_todays_date,
                 calculate_days_between,
                 format_data,
             ],
