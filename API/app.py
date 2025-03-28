@@ -141,8 +141,11 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
     
     Returns the agent response and session details.
     """
-    # Generate a session ID if not provided
-    session_id = request.session_id or gen_trace_id()[:8]
+    # Use the provided session ID or generate a default one that's stable
+    # We need a stable, consistent session ID rather than a random one each time
+    session_id = request.session_id or "default_session"
+    # Log session ID for debugging
+    print(f"DEBUG: Using session ID: {session_id}")
     
     # Get or create the agent session
     session = agent_manager.get_or_create_session(session_id)
