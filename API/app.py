@@ -195,75 +195,104 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                     trace_id=trace_id
                 )
             else:
-                # Standard mode without verification
-                result = await Runner.run(
-                    session.orchestrator_agent, 
-                    current_input,
-                    context=request.context
-                )
-                
-                # Safely extract the final output
-                final_output = ""
+                # For non-verification mode, use a simplified direct response approach
+                # that bypasses potential version compatibility issues
                 try:
-                    final_output = result.final_output
-                except Exception as e:
-                    # Try to get final output from the result
-                    if hasattr(result, "output"):
-                        final_output = result.output
-                    elif hasattr(result, "text"):
-                        final_output = result.text
-                    elif isinstance(result, str):
-                        final_output = result
-                    else:
-                        final_output = str(result)
-                    print(f"Warning: Error extracting final_output: {str(e)}. Using fallback.")
+                    # Create a simplified trace first
+                    with trace(f"API request - {session_id}", trace_id=trace_id):
+                        # This is a minimal implementation using direct run
+                        # that avoids complex result structure handling
+                        try:
+                            # Try the new-style Runner call first
+                            result = await Runner.run(
+                                session.orchestrator_agent, 
+                                current_input,
+                                context=request.context
+                            )
+                            
+                            # Attempt to get the final output with graceful degradation
+                            if hasattr(result, 'final_output'):
+                                final_output = result.final_output
+                            elif hasattr(result, 'output'):
+                                final_output = result.output
+                            elif hasattr(result, 'text'):
+                                final_output = result.text
+                            elif isinstance(result, str):
+                                final_output = result
+                            else:
+                                # Very simple string conversion fallback
+                                final_output = str(result)
+                            
+                        except Exception as runner_error:
+                            # Log but continue with a simpler approach
+                            print(f"Runner.run error: {str(runner_error)}. Using agent direct call.")
+                            
+                            # Ultra-simple fallback: call the agent directly
+                            # This bypasses all complex result handling
+                            response = await session.orchestrator_agent.generate(current_input)
+                            final_output = response.text
                 
-                # Update conversation history safely
-                try:
-                    if hasattr(result, 'to_input_list'):
-                        if callable(result.to_input_list):
-                            session.conversation_history = result.to_input_list()
-                        else:
-                            session.conversation_history = result.to_input_list
-                    else:
-                        # Fallback if to_input_list is not available
-                        if session.conversation_history:
-                            session.conversation_history = session.conversation_history + [
-                                {"role": "user", "content": request.input},
-                                {"role": "assistant", "content": final_output}
-                            ]
-                        else:
-                            session.conversation_history = [
-                                {"role": "user", "content": request.input},
-                                {"role": "assistant", "content": final_output}
-                            ]
-                except Exception as e:
-                    print(f"Warning: Error updating conversation history: {str(e)}. Using fallback.")
-                    # Ultimate fallback
+                    # Super simple conversation history update
                     if session.conversation_history:
-                        session.conversation_history = session.conversation_history + [
+                        new_conversation = session.conversation_history + [
                             {"role": "user", "content": request.input},
                             {"role": "assistant", "content": final_output}
                         ]
                     else:
-                        session.conversation_history = [
+                        new_conversation = [
                             {"role": "user", "content": request.input},
                             {"role": "assistant", "content": final_output}
                         ]
-                
-                # Convert to Pydantic model format
-                conversation_history = [
-                    ConversationMessage(role=msg["role"], content=msg["content"])
-                    for msg in session.conversation_history
-                ]
-                
-                return SessionResponse(
-                    session_id=session_id,
-                    response=final_output,
-                    verification_details=None,
-                    conversation_history=conversation_history,
-                    trace_id=trace_id
-                )
+                    
+                    # Save the new conversation history
+                    session.conversation_history = new_conversation
+                    
+                    # Convert to model format
+                    conversation_history = [
+                        ConversationMessage(role=msg["role"], content=msg["content"])
+                        for msg in new_conversation
+                    ]
+                    
+                    # Return the response
+                    return SessionResponse(
+                        session_id=session_id,
+                        response=final_output,
+                        verification_details=None,
+                        conversation_history=conversation_history,
+                        trace_id=trace_id
+                    )
+                    
+                except Exception as e:
+                    # Log any errors that occurred during the simplified approach
+                    print(f"Error in simplified non-verification mode: {str(e)}")
+                    
+                    # Ultimate fallback - just return what we have
+                    # This ensures we never fail with 500 for this path
+                    if not 'final_output' in locals():
+                        final_output = f"I apologize, but I encountered an error processing your request. Details: {str(e)}"
+                    
+                    if session.conversation_history:
+                        conversation_history = [
+                            ConversationMessage(role=msg["role"], content=msg["content"])
+                            for msg in session.conversation_history + [
+                                {"role": "user", "content": request.input},
+                                {"role": "assistant", "content": final_output}
+                            ]
+                        ]
+                    else:
+                        conversation_history = [
+                            ConversationMessage(role="user", content=request.input),
+                            ConversationMessage(role="assistant", content=final_output)
+                        ]
+                    
+                    # Always return a valid response, never fail with 500
+                    return SessionResponse(
+                        session_id=session_id,
+                        response=final_output,
+                        verification_details=None,
+                        conversation_history=conversation_history,
+                        trace_id=trace_id
+                    )
                 
         except Exception as e:
             # Log the error in the background to avoid blocking the response
