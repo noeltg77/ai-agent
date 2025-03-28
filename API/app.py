@@ -156,11 +156,26 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
             # Prepare input with conversation history if available
             if session.conversation_history:
                 # Make sure we're not duplicating user messages
-                # The session.conversation_history already contains previous turns in the format:
-                # [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
-                # So we just need to add the new user message
-                current_input = session.conversation_history.copy() + [{"role": "user", "content": request.input}]
-                print(f"DEBUG: Using conversation history: {current_input}")
+                # Create a simplified and consistent conversation history
+                # This helps ensure we're using a format the SDK can properly understand
+                simplified_history = []
+                for msg in session.conversation_history:
+                    # Only include user and assistant messages with string content
+                    if "role" in msg and "content" in msg and msg["role"] in ["user", "assistant"]:
+                        if isinstance(msg["content"], str):
+                            simplified_history.append({"role": msg["role"], "content": msg["content"]})
+                        elif isinstance(msg["content"], list):
+                            # Extract text from complex content structures
+                            extracted_content = ""
+                            for content_item in msg["content"]:
+                                if isinstance(content_item, dict) and "text" in content_item:
+                                    extracted_content += content_item["text"] + "\n"
+                            if extracted_content:
+                                simplified_history.append({"role": msg["role"], "content": extracted_content.strip()})
+                
+                # Add the new user message
+                current_input = simplified_history + [{"role": "user", "content": request.input}]
+                print(f"DEBUG: Using simplified conversation history: {current_input}")
             else:
                 # First message - just use the raw input as a string
                 current_input = request.input
@@ -176,17 +191,29 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                     trace_name=f"API verification - {session_id}"
                 )
                 
-                # Update conversation history
+                # Update conversation history using a consistent format
+                # Always ensure we're using a clean format that works with the SDK
                 if session.conversation_history:
-                    session.conversation_history = session.conversation_history + [
-                        {"role": "user", "content": request.input},
-                        {"role": "assistant", "content": final_output}
-                    ]
+                    # Extract existing history in simplified format
+                    simplified_history = []
+                    for msg in session.conversation_history:
+                        if "role" in msg and "content" in msg and msg["role"] in ["user", "assistant"]:
+                            if isinstance(msg["content"], str):
+                                simplified_history.append({"role": msg["role"], "content": msg["content"]})
+                    
+                    # Add the new exchange
+                    simplified_history.append({"role": "user", "content": request.input})
+                    simplified_history.append({"role": "assistant", "content": final_output})
+                    session.conversation_history = simplified_history
                 else:
+                    # First exchange
                     session.conversation_history = [
                         {"role": "user", "content": request.input},
                         {"role": "assistant", "content": final_output}
                     ]
+                
+                # Debug the updated history
+                print(f"DEBUG: Updated conversation history (verification mode): {session.conversation_history}")
                 
                 # Convert to model format - handle complex message types from the SDK
                 conversation_history = []
@@ -301,51 +328,98 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                     
                     # Following the SDK pattern for conversation history
                     try:
-                        # If we got a result from Runner.run, use the proper method to get the conversation history
+                        # First, get the current simplified history to preserve context
+                        simplified_history = []
+                        if session.conversation_history:
+                            for msg in session.conversation_history:
+                                if "role" in msg and "content" in msg and msg["role"] in ["user", "assistant"]:
+                                    if isinstance(msg["content"], str):
+                                        simplified_history.append({"role": msg["role"], "content": msg["content"]})
+                        
+                        # If we got a result from Runner.run, use the proper method to get the newest history
                         if hasattr(result, 'to_input_list') and callable(result.to_input_list):
                             try:
-                                # This is the recommended way to get the conversation history from the SDK
-                                # It properly formats all the turns, tools calls, etc.
-                                session.conversation_history = result.to_input_list()
-                                print(f"DEBUG: Updated conversation history using result.to_input_list()")
-                            except Exception as e:
-                                print(f"DEBUG: Error updating conversation history from result: {str(e)}. Using fallback.")
-                                # Fallback to manual update
-                                if session.conversation_history:
-                                    session.conversation_history = session.conversation_history + [
-                                        {"role": "user", "content": request.input},
-                                        {"role": "assistant", "content": final_output}
-                                    ]
+                                # Get the SDK-formatted conversation turns from this interaction only
+                                new_turns = result.to_input_list()
+                                print(f"DEBUG: Result from to_input_list(): {new_turns}")
+                                
+                                # Extract just the essential message content from new turns
+                                extracted_turns = []
+                                for msg in new_turns:
+                                    # Handle standard messages
+                                    if "role" in msg and "content" in msg and msg["role"] in ["user", "assistant"]:
+                                        if isinstance(msg["content"], str):
+                                            extracted_turns.append({"role": msg["role"], "content": msg["content"]})
+                                        elif isinstance(msg["content"], list):
+                                            # Extract text from complex content structures
+                                            extracted_content = ""
+                                            for content_item in msg["content"]:
+                                                if isinstance(content_item, dict) and "text" in content_item:
+                                                    extracted_content += content_item["text"] + "\n"
+                                            if extracted_content:
+                                                extracted_turns.append({"role": msg["role"], "content": extracted_content.strip()})
+                                
+                                # If we have at least a user and assistant message, use those
+                                if len(extracted_turns) >= 2:
+                                    # Find the last user-assistant exchange
+                                    user_msgs = [i for i, msg in enumerate(extracted_turns) if msg["role"] == "user"]
+                                    if user_msgs:
+                                        last_user_idx = user_msgs[-1]
+                                        # If we have at least one user + assistant exchange
+                                        if last_user_idx < len(extracted_turns) - 1:
+                                            # Add just this exchange to the history
+                                            simplified_history.append(extracted_turns[last_user_idx])  # User
+                                            simplified_history.append(extracted_turns[last_user_idx + 1])  # Assistant
+                                        else:
+                                            # Add the manual exchange
+                                            simplified_history.append({"role": "user", "content": request.input})
+                                            simplified_history.append({"role": "assistant", "content": final_output})
+                                    else:
+                                        # Add the manual exchange
+                                        simplified_history.append({"role": "user", "content": request.input})
+                                        simplified_history.append({"role": "assistant", "content": final_output})
                                 else:
-                                    session.conversation_history = [
-                                        {"role": "user", "content": request.input},
-                                        {"role": "assistant", "content": final_output}
-                                    ]
+                                    # Not enough messages, fall back to manual
+                                    simplified_history.append({"role": "user", "content": request.input})
+                                    simplified_history.append({"role": "assistant", "content": final_output})
+                                
+                                # Update the history
+                                session.conversation_history = simplified_history
+                                print(f"DEBUG: Updated conversation history with simplified extraction")
+                            except Exception as e:
+                                print(f"DEBUG: Error processing to_input_list: {str(e)}. Using fallback.")
+                                # Fallback to manual update
+                                simplified_history.append({"role": "user", "content": request.input})
+                                simplified_history.append({"role": "assistant", "content": final_output})
+                                session.conversation_history = simplified_history
                         else:
                             # Manual update if no result.to_input_list method
-                            if session.conversation_history:
-                                session.conversation_history = session.conversation_history + [
-                                    {"role": "user", "content": request.input},
-                                    {"role": "assistant", "content": final_output}
-                                ]
-                            else:
-                                session.conversation_history = [
-                                    {"role": "user", "content": request.input},
-                                    {"role": "assistant", "content": final_output}
-                                ]
+                            simplified_history.append({"role": "user", "content": request.input})
+                            simplified_history.append({"role": "assistant", "content": final_output})
+                            session.conversation_history = simplified_history
                     except Exception as e:
                         print(f"DEBUG: General error updating conversation history: {str(e)}. Using minimal fallback.")
-                        # Ultimate fallback
+                        # Ultimate fallback - just add the latest exchange
                         if session.conversation_history:
-                            session.conversation_history = session.conversation_history + [
-                                {"role": "user", "content": request.input},
-                                {"role": "assistant", "content": final_output}
-                            ]
+                            # Start with existing history if available
+                            simplified_history = []
+                            for msg in session.conversation_history:
+                                if "role" in msg and "content" in msg and msg["role"] in ["user", "assistant"]:
+                                    if isinstance(msg["content"], str):
+                                        simplified_history.append({"role": msg["role"], "content": msg["content"]})
+                            
+                            # Add the new exchange
+                            simplified_history.append({"role": "user", "content": request.input})
+                            simplified_history.append({"role": "assistant", "content": final_output})
+                            session.conversation_history = simplified_history
                         else:
                             session.conversation_history = [
                                 {"role": "user", "content": request.input},
                                 {"role": "assistant", "content": final_output}
                             ]
+                    
+                    # Debug the updated history
+                    print(f"DEBUG: Final conversation history (non-verification mode): {session.conversation_history}")
                     
                     # Debug log after update
                     print(f"Session {session_id} conversation history after update: {session.conversation_history}")
