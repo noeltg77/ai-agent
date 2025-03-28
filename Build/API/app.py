@@ -223,25 +223,54 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks, api_k
                     context=request.context
                 )
             
-            # Update conversation history
-            if isinstance(result.to_input_list, list):
-                session.conversation_history = result.to_input_list
-            else:
-                # Handle case when to_input_list is a method
-                try:
-                    session.conversation_history = result.to_input_list()
-                except Exception as e:
-                    # Fallback if the method fails
+            # Safely extract the final output
+            final_output = ""
+            try:
+                final_output = result.final_output
+            except Exception as e:
+                # Try to get final output from the result
+                if hasattr(result, "output"):
+                    final_output = result.output
+                elif hasattr(result, "text"):
+                    final_output = result.text
+                elif isinstance(result, str):
+                    final_output = result
+                else:
+                    final_output = str(result)
+                print(f"Warning: Error extracting final_output: {str(e)}. Using fallback.")
+            
+            # Update conversation history safely
+            try:
+                if hasattr(result, 'to_input_list'):
+                    if callable(result.to_input_list):
+                        session.conversation_history = result.to_input_list()
+                    else:
+                        session.conversation_history = result.to_input_list
+                else:
+                    # Fallback if to_input_list is not available
                     if session.conversation_history:
                         session.conversation_history = session.conversation_history + [
                             {"role": "user", "content": request.input},
-                            {"role": "assistant", "content": result.final_output}
+                            {"role": "assistant", "content": final_output}
                         ]
                     else:
                         session.conversation_history = [
                             {"role": "user", "content": request.input},
-                            {"role": "assistant", "content": result.final_output}
+                            {"role": "assistant", "content": final_output}
                         ]
+            except Exception as e:
+                print(f"Warning: Error updating conversation history: {str(e)}. Using fallback.")
+                # Ultimate fallback
+                if session.conversation_history:
+                    session.conversation_history = session.conversation_history + [
+                        {"role": "user", "content": request.input},
+                        {"role": "assistant", "content": final_output}
+                    ]
+                else:
+                    session.conversation_history = [
+                        {"role": "user", "content": request.input},
+                        {"role": "assistant", "content": final_output}
+                    ]
             
             # Convert to Pydantic model format
             conversation_history = [
@@ -251,7 +280,7 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks, api_k
             
             return SessionResponse(
                 session_id=session_id,
-                response=result.final_output,
+                response=final_output,
                 verification_details=None,
                 conversation_history=conversation_history,
                 trace_id=trace_id
