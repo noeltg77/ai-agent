@@ -135,7 +135,7 @@ async def list_agents():
             {
                 "name": "graphic_designer",
                 "description": "Generates custom images based on descriptions",
-                "tools": ["generate_image", "mcp_generate_image (Replicate's Flux 1.1 Pro model)"]
+                "tools": ["mcp_generate_image (Replicate's Flux 1.1 Pro model)"]
             },
             {
                 "name": "verification",

@@ -23,12 +23,27 @@ def get_current_time(location: Optional[str]) -> str:
     Returns:
         A string representing the current date and time
     """
+    # Force the system to use the current time
+    # Get multiple time representations to debug any caching issues
+    current_utc = datetime.datetime.utcnow()
     current_time = datetime.datetime.now()
+    timestamp = time.time()
+    
+    # Format times in multiple ways to verify correctness
     formatted_time = current_time.strftime("%A, %B %d, %Y at %I:%M:%S %p")
+    utc_time = current_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+    iso_format = current_time.isoformat()
+    
+    # Create a comprehensive response with multiple time formats
+    response = f"Current time: {formatted_time}\n"
+    response += f"UTC time: {utc_time}\n"
+    response += f"ISO format: {iso_format}\n"
+    response += f"Unix timestamp: {timestamp}\n"
+    response += f"Year: {current_time.year}, Month: {current_time.month}, Day: {current_time.day}"
     
     if location:
-        return f"Current time ({location}): {formatted_time}"
-    return f"Current time: {formatted_time}"
+        return f"Current time for {location}:\n{response}"
+    return response
 
 @function_tool
 def calculate_days_between(start_date: str, end_date: str) -> str:
@@ -50,6 +65,35 @@ def calculate_days_between(start_date: str, end_date: str) -> str:
         return f"There are {difference.days} days between {start_date} and {end_date}"
     except ValueError as e:
         return f"Error parsing dates: {str(e)}. Please ensure dates are in format YYYY-MM-DD."
+        
+@function_tool
+def get_todays_date() -> str:
+    """
+    Get today's date in multiple formats to verify system time.
+    
+    Returns:
+        A string with today's date in multiple formats
+    """
+    now = datetime.datetime.now()
+    
+    # Use multiple date libraries and approaches to ensure we get the correct date
+    system_date = now.strftime("%Y-%m-%d")
+    formatted_date = now.strftime("%A, %B %d, %Y")
+    timestamp = time.time()
+    time_components = {
+        "year": now.year,
+        "month": now.month,
+        "day": now.day,
+        "hour": now.hour,
+        "minute": now.minute
+    }
+    
+    response = f"Today's date (YYYY-MM-DD): {system_date}\n"
+    response += f"Today's date (formatted): {formatted_date}\n"
+    response += f"Current timestamp: {timestamp}\n"
+    response += f"Date components: {time_components}"
+    
+    return response
 
 @function_tool
 def format_data(ctx: RunContextWrapper[Any], data_str: str, format_type: str) -> str:

@@ -20,28 +20,18 @@ When Working with Social Media Content:
 - Ensure the image reinforces the key message of the post
 - Consider visual branding and consistency
 
-You have access to two image generation tools:
+You have access to a powerful image generation tool through MCP:
 
-1. The generate_image tool which creates images using a standard image generation service. Parameters:
-   - prompt: A detailed description of the image you want to generate
-   - aspect_ratio: The aspect ratio (default is "1:1" square)
-     Options: "1:1" (square), "16:9" (landscape), "9:16" (portrait), "4:3" (landscape), "3:4" (portrait)
+The generate_image tool uses Replicate's Flux 1.1 Pro model for high-quality images. Parameters:
+- prompt: A detailed description of the image you want to generate
+- aspect_ratio: The aspect ratio (default is "1:1" square)
+  Options: "1:1" (square), "16:9" (landscape), "9:16" (portrait), "4:3" (landscape), "3:4" (portrait)
+- output_format: Format of the output image (default is "webp")
+- output_quality: Quality of the output image (1-100, default is 80)
+- safety_tolerance: Safety tolerance level (0-3, default is 2)
+- prompt_upsampling: Whether to use prompt upsampling (default is true)
 
-2. The generate_image MCP tool which uses Replicate's Flux 1.1 Pro model for higher quality images. Parameters:
-   - prompt: A detailed description of the image you want to generate
-   - aspect_ratio: The aspect ratio (default is "1:1" square)
-     Options: "1:1" (square), "16:9" (landscape), "9:16" (portrait), "4:3" (landscape), "3:4" (portrait)
-   - output_format: Format of the output image (default is "webp")
-   - output_quality: Quality of the output image (1-100, default is 80)
-   - safety_tolerance: Safety tolerance level (0-3, default is 2)
-   - prompt_upsampling: Whether to use prompt upsampling (default is true)
-
-Choose between these tools based on:
-- For standard images, use the generate_image tool
-- For higher quality images or when specific styles are requested, use the MCP generate_image tool
-- Default to the MCP tool when quality is paramount
-
-For best results with either tool:
+For best results with this tool:
 - Use clear, detailed descriptions
 - Specify important visual elements
 - Include style references (photorealistic, cartoon, painted, etc.)
