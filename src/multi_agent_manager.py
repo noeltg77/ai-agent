@@ -42,7 +42,7 @@ class MultiAgentManager:
             name="Replicate Designer MCP",
             params={
                 "command": "npx",
-                "args": ["-y", "github:yourusername/replicate-designer"],
+                "args": ["-y", "github:noeltg77/replicate-designer"],
                 "env": {
                     "REPLICATE_API_TOKEN": os.environ.get("REPLICATE_API_TOKEN", "")
                 }
