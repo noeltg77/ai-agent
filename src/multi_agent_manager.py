@@ -15,6 +15,7 @@ if api_key:
     os.environ["OPENAI_API_KEY"] = api_key
 
 from agents import Agent, Runner, trace, ItemHelpers, gen_trace_id, WebSearchTool
+from agents.mcp import MCPServerStdio
 
 from src.tools import get_current_time, calculate_days_between, format_data, generate_image, get_todays_date
 from src.prompt_loader import PromptLoader
@@ -35,6 +36,19 @@ class MultiAgentManager:
         # Initialize verification system
         self.verification_enabled = verification_enabled
         self.verification = Verification(max_attempts=max_verification_attempts)
+        
+        # Initialize the Replicate Designer MCP server
+        self.replicate_designer_mcp = MCPServerStdio(
+            name="Replicate Designer MCP",
+            params={
+                "command": "npx",
+                "args": ["-y", "github:yourusername/replicate-designer"],
+                "env": {
+                    "REPLICATE_API_TOKEN": os.environ.get("REPLICATE_API_TOKEN", "")
+                }
+            },
+            cache_tools_list=True
+        )
         
         # Store for API sessions
         self.sessions: Dict[str, AgentSession] = {}
@@ -85,11 +99,12 @@ class MultiAgentManager:
             instructions=PromptLoader.get_prompt("summarizer_agent"),
         )
         
-        # Create the graphic designer agent
+        # Create the graphic designer agent with both local function and MCP tools
         self.graphic_designer_agent = Agent(
             name="graphic_designer_agent",
             instructions=PromptLoader.get_prompt("graphic_designer_agent"),
             tools=[generate_image],
+            mcp_servers=[self.replicate_designer_mcp],
         )
         
         # Create orchestrator agent with the specialized agents as tools
@@ -173,6 +188,15 @@ class MultiAgentManager:
             self.sessions[session_id] = session
             return session
 
+    async def __aenter__(self):
+        """Async context manager entry - connects to MCP servers"""
+        await self.replicate_designer_mcp.__aenter__()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        """Async context manager exit - disconnects from MCP servers"""
+        await self.replicate_designer_mcp.__aexit__(exc_type, exc_value, traceback)
+    
     async def process_query(self, query: str, conversation_history=None, use_verification: bool = None) -> tuple:
         """
         Process a user query through the multi-agent system.

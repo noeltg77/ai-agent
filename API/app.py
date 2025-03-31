@@ -8,6 +8,7 @@ import asyncio
 from typing import Optional, Dict, Any, List, Union
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, Request, BackgroundTasks
+from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
@@ -31,11 +32,26 @@ from src.verification_sdk import Verification
 # Initialize the prompt loader
 PromptLoader.initialize()
 
+# Lifespan context manager for FastAPI to handle async initialization
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize the MultiAgentManager with MCP server connections
+    global agent_manager
+    agent_manager = MultiAgentManager()
+    # Connect to all MCP servers
+    await agent_manager.__aenter__()
+    
+    yield
+    
+    # Shutdown and close MCP connections
+    await agent_manager.__aexit__(None, None, None)
+
 # Create the application
 app = FastAPI(
     title="Multi-Agent API",
     description="API for interacting with a multi-agent system with verification capabilities",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -48,7 +64,8 @@ app.add_middleware(
 )
 
 # Initialize global multi-agent manager for handling sessions
-agent_manager = MultiAgentManager()
+# We'll need to create it asynchronously to handle MCP connections
+agent_manager = None
 
 # Global verification system
 verification = Verification(max_attempts=2)
@@ -118,7 +135,7 @@ async def list_agents():
             {
                 "name": "graphic_designer",
                 "description": "Generates custom images based on descriptions",
-                "tools": ["generate_image"]
+                "tools": ["generate_image", "mcp_generate_image (Replicate's Flux 1.1 Pro model)"]
             },
             {
                 "name": "verification",

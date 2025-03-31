@@ -39,6 +39,9 @@ def main():
     # Add SDK-style verification example
     sdk_verify_parser = multi_agent_subparsers.add_parser("sdk-verify", help="Run SDK-style verification example")
     
+    # Add MCP image generation example
+    mcp_image_parser = multi_agent_subparsers.add_parser("mcp-image", help="Run MCP image generation example")
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -58,6 +61,8 @@ def main():
             run_example("verification_example")
         elif args.example_type == "sdk-verify":
             run_example("verification_sdk_example")
+        elif args.example_type == "mcp-image":
+            run_example("mcp_image_example")
         else:
             multi_agent_parser.print_help()
     else:
