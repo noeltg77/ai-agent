@@ -51,12 +51,12 @@ async def main():
         },
         cache_tools_list=True
     ) as replicate_designer_mcp:
-        # Create the graphic designer agent with both local function and MCP tools
+        # Create the graphic designer agent with only the MCP tool
         graphic_designer_agent = Agent(
             name="graphic_designer_agent",
             instructions=PromptLoader.get_prompt("graphic_designer_agent"),
-            tools=[generate_image],
-            mcp_servers=[replicate_designer_mcp],
+            tools=[],  # Remove the local generate_image tool
+            mcp_servers=[replicate_designer_mcp],  # Only use the MCP server for image generation
         )
         
         # Create a trace for the entire process
@@ -65,8 +65,7 @@ async def main():
             print(f"View trace: https://platform.openai.com/traces/{trace_id}")
             
             print("\nThe graphic designer agent now has access to:")
-            print("1. Standard generate_image tool (using the Replicate API directly)")
-            print("2. MCP generate_image tool (using Replicate's Flux 1.1 Pro model via MCP)")
+            print("MCP generate_image tool (using Replicate's Flux 1.1 Pro model via MCP)")
             print("\nExample prompts:")
             print("- Generate an image of a futuristic cityscape with flying cars")
             print("- Create a photorealistic portrait of a robot reading a book")

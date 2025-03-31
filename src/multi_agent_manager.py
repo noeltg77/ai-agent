@@ -99,12 +99,12 @@ class MultiAgentManager:
             instructions=PromptLoader.get_prompt("summarizer_agent"),
         )
         
-        # Create the graphic designer agent with both local function and MCP tools
+        # Create the graphic designer agent with only the MCP tool
         self.graphic_designer_agent = Agent(
             name="graphic_designer_agent",
             instructions=PromptLoader.get_prompt("graphic_designer_agent"),
-            tools=[generate_image],
-            mcp_servers=[self.replicate_designer_mcp],
+            tools=[],  # Remove the local generate_image tool
+            mcp_servers=[self.replicate_designer_mcp],  # Only use the MCP server for image generation
         )
         
         # Create orchestrator agent with the specialized agents as tools
