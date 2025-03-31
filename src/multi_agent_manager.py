@@ -38,17 +38,33 @@ class MultiAgentManager:
         self.verification = Verification(max_attempts=max_verification_attempts)
         
         # Initialize the Replicate Designer MCP server
-        self.replicate_designer_mcp = MCPServerStdio(
-            name="Replicate Designer MCP",
-            params={
-                "command": "npx",
-                "args": ["-y", "github:noeltg77/replicate-designer"],
-                "env": {
-                    "REPLICATE_API_TOKEN": os.environ.get("REPLICATE_API_TOKEN", "")
-                }
-            },
-            cache_tools_list=True
-        )
+        try:
+            # Check if npx is available
+            import shutil
+            if not shutil.which("npx"):
+                print("Warning: npx is not installed. MCP Server will not work.")
+                self.replicate_designer_mcp = None
+            else:
+                # Initialize the MCP server
+                replicate_token = os.environ.get("REPLICATE_API_TOKEN", "")
+                if not replicate_token:
+                    print("Warning: REPLICATE_API_TOKEN not set. MCP Server will not work correctly.")
+                
+                self.replicate_designer_mcp = MCPServerStdio(
+                    name="Replicate Designer MCP",
+                    params={
+                        "command": "npx",
+                        "args": ["-y", "github:noeltg77/replicate-designer"],
+                        "env": {
+                            "REPLICATE_API_TOKEN": replicate_token
+                        }
+                    },
+                    cache_tools_list=True
+                )
+                print("Replicate Designer MCP server initialized successfully")
+        except Exception as e:
+            print(f"Error initializing MCP server: {str(e)}")
+            self.replicate_designer_mcp = None
         
         # Store for API sessions
         self.sessions: Dict[str, AgentSession] = {}
@@ -99,13 +115,25 @@ class MultiAgentManager:
             instructions=PromptLoader.get_prompt("summarizer_agent"),
         )
         
-        # Create the graphic designer agent with only the MCP tool
-        self.graphic_designer_agent = Agent(
-            name="graphic_designer_agent",
-            instructions=PromptLoader.get_prompt("graphic_designer_agent"),
-            tools=[],  # Remove the local generate_image tool
-            mcp_servers=[self.replicate_designer_mcp],  # Only use the MCP server for image generation
-        )
+        # Create the graphic designer agent with appropriate tools
+        if self.replicate_designer_mcp:
+            # If MCP server is available, use it
+            self.graphic_designer_agent = Agent(
+                name="graphic_designer_agent",
+                instructions=PromptLoader.get_prompt("graphic_designer_agent"),
+                tools=[],  # No local tools
+                mcp_servers=[self.replicate_designer_mcp],  # Only use the MCP server
+            )
+            print("Graphic designer agent configured with MCP tools")
+        else:
+            # Fallback to the local generate_image tool if MCP server is not available
+            self.graphic_designer_agent = Agent(
+                name="graphic_designer_agent",
+                instructions=PromptLoader.get_prompt("graphic_designer_agent"),
+                tools=[generate_image],  # Fallback to local tool
+            )
+            print("Graphic designer agent configured with local generate_image tool (MCP not available)")
+        
         
         # Create orchestrator agent with the specialized agents as tools
         self.orchestrator_agent = Agent(
@@ -190,12 +218,29 @@ class MultiAgentManager:
 
     async def __aenter__(self):
         """Async context manager entry - connects to MCP servers"""
-        await self.replicate_designer_mcp.__aenter__()
+        if self.replicate_designer_mcp:
+            try:
+                await self.replicate_designer_mcp.__aenter__()
+                print("Successfully connected to MCP server")
+            except Exception as e:
+                print(f"Error connecting to MCP server: {str(e)}")
+                # Reset the graphic designer agent to use local tools instead
+                self.graphic_designer_agent = Agent(
+                    name="graphic_designer_agent",
+                    instructions=PromptLoader.get_prompt("graphic_designer_agent"),
+                    tools=[generate_image],  # Fallback to local tool
+                )
+                print("Reconfigured graphic designer agent to use local tools")
         return self
         
     async def __aexit__(self, exc_type, exc_value, traceback):
         """Async context manager exit - disconnects from MCP servers"""
-        await self.replicate_designer_mcp.__aexit__(exc_type, exc_value, traceback)
+        if self.replicate_designer_mcp:
+            try:
+                await self.replicate_designer_mcp.__aexit__(exc_type, exc_value, traceback)
+                print("Successfully disconnected from MCP server")
+            except Exception as e:
+                print(f"Error disconnecting from MCP server: {str(e)}")
     
     async def process_query(self, query: str, conversation_history=None, use_verification: bool = None) -> tuple:
         """

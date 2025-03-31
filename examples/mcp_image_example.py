@@ -39,18 +39,33 @@ async def main():
     print("for high-quality image generation with the graphic designer agent.")
     print()
     
-    # Initialize the Replicate Designer MCP server
-    async with MCPServerStdio(
-        name="Replicate Designer MCP",
-        params={
-            "command": "npx",
-            "args": ["-y", "github:noeltg77/replicate-designer"],
-            "env": {
-                "REPLICATE_API_TOKEN": os.environ.get("REPLICATE_API_TOKEN", "")
-            }
-        },
-        cache_tools_list=True
-    ) as replicate_designer_mcp:
+    # Check for required dependencies and environment variables
+    import shutil
+    if not shutil.which("npx"):
+        print("Error: npx is not installed. Please install it with: npm install -g npx")
+        return
+    
+    replicate_token = os.environ.get("REPLICATE_API_TOKEN", "")
+    if not replicate_token:
+        print("Error: REPLICATE_API_TOKEN environment variable is not set. MCP won't work.")
+        print("Please set this in your .env file or export it in your environment.")
+        return
+    
+    print(f"Using Replicate API Token: {replicate_token[:5]}...{replicate_token[-4:]}")
+    
+    try:
+        # Initialize the Replicate Designer MCP server
+        async with MCPServerStdio(
+            name="Replicate Designer MCP",
+            params={
+                "command": "npx",
+                "args": ["-y", "github:noeltg77/replicate-designer"],
+                "env": {
+                    "REPLICATE_API_TOKEN": replicate_token
+                }
+            },
+            cache_tools_list=True
+        ) as replicate_designer_mcp:
         # Create the graphic designer agent with only the MCP tool
         graphic_designer_agent = Agent(
             name="graphic_designer_agent",
@@ -90,6 +105,13 @@ async def main():
                 print("\nGraphic Designer Agent Response:")
                 print(result.final_output)
                 print("\n" + "-" * 60)
+    except Exception as e:
+        print(f"Error initializing or running MCP server: {str(e)}")
+        print("Please make sure:")
+        print("1. You have npx installed (npm install -g npx)")
+        print("2. The github:noeltg77/replicate-designer repository exists and is accessible")
+        print("3. You have a valid REPLICATE_API_TOKEN in your environment")
+        print("\nAs a fallback, you can use the built-in generate_image function directly.")
 
 if __name__ == "__main__":
     asyncio.run(main())
