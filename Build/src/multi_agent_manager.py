@@ -115,24 +115,33 @@ class MultiAgentManager:
             instructions=PromptLoader.get_prompt("summarizer_agent"),
         )
         
-        # Create the graphic designer agent with appropriate tools
-        if self.replicate_designer_mcp:
-            # If MCP server is available, use it
-            self.graphic_designer_agent = Agent(
-                name="graphic_designer_agent",
-                instructions=PromptLoader.get_prompt("graphic_designer_agent"),
-                tools=[],  # No local tools
-                mcp_servers=[self.replicate_designer_mcp],  # Only use the MCP server
-            )
-            print("Graphic designer agent configured with MCP tools")
-        else:
-            # Fallback to the local generate_image tool if MCP server is not available
+        # Create the graphic designer agent with both MCP and local tools for better reliability
+        try:
+            if self.replicate_designer_mcp:
+                # Use both MCP server and local tool as fallback for reliability
+                self.graphic_designer_agent = Agent(
+                    name="graphic_designer_agent",
+                    instructions=PromptLoader.get_prompt("graphic_designer_agent"),
+                    tools=[generate_image],  # Include local tool as backup
+                    mcp_servers=[self.replicate_designer_mcp],  # Use MCP server when available
+                )
+                print("Graphic designer agent configured with MCP tools and local fallback")
+            else:
+                # Fallback to the local generate_image tool if MCP server is not available
+                self.graphic_designer_agent = Agent(
+                    name="graphic_designer_agent",
+                    instructions=PromptLoader.get_prompt("graphic_designer_agent"),
+                    tools=[generate_image],  # Fallback to local tool
+                )
+                print("Graphic designer agent configured with local generate_image tool (MCP not available)")
+        except Exception as e:
+            print(f"Error configuring graphic designer agent: {str(e)}. Using local tool only.")
+            # Ultimate fallback - always use local tool in case of errors
             self.graphic_designer_agent = Agent(
                 name="graphic_designer_agent",
                 instructions=PromptLoader.get_prompt("graphic_designer_agent"),
                 tools=[generate_image],  # Fallback to local tool
             )
-            print("Graphic designer agent configured with local generate_image tool (MCP not available)")
         
         
         # Create orchestrator agent with the specialized agents as tools
@@ -224,13 +233,15 @@ class MultiAgentManager:
                 print("Successfully connected to MCP server")
             except Exception as e:
                 print(f"Error connecting to MCP server: {str(e)}")
+                # MCP connection failed - set to None to avoid further attempts
+                self.replicate_designer_mcp = None
                 # Reset the graphic designer agent to use local tools instead
                 self.graphic_designer_agent = Agent(
                     name="graphic_designer_agent",
                     instructions=PromptLoader.get_prompt("graphic_designer_agent"),
-                    tools=[generate_image],  # Fallback to local tool
+                    tools=[generate_image],  # Fallback to local tool only
                 )
-                print("Reconfigured graphic designer agent to use local tools")
+                print("Reconfigured graphic designer agent to use local tools only")
         return self
         
     async def __aexit__(self, exc_type, exc_value, traceback):
