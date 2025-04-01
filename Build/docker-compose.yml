@@ -3,15 +3,15 @@ version: '3.8'
 services:
   api:
     build: 
-      context: ..
-      dockerfile: api/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=8000
     volumes:
-      - ../:/app
+      - ./:/app
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

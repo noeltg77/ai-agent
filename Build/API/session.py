@@ -15,13 +15,19 @@ try:
     from src.tools import generate_image
     from src.verification_sdk import Verification
 except ImportError:
-    import sys
-    import os
-    # Add the parent directory to the path
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from src.prompt_loader import PromptLoader
-    from src.tools import generate_image
-    from src.verification_sdk import Verification
+    try:
+        # Try with Build prefix
+        from Build.src.prompt_loader import PromptLoader
+        from Build.src.tools import generate_image
+        from Build.src.verification_sdk import Verification
+    except ImportError:
+        import sys
+        import os
+        # Add the parent directory to the path
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+        from src.prompt_loader import PromptLoader
+        from src.tools import generate_image
+        from src.verification_sdk import Verification
 
 @dataclass
 class AgentSession:

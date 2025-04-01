@@ -30,11 +30,15 @@ except ImportError:
         # Try relative import (for when API is a sibling package)
         from ..API.session import AgentSession
     except ImportError:
-        # Fallback for Docker or other environments
-        import sys
-        import os
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-        from API.session import AgentSession
+        try:
+            # Try with Build prefix
+            from Build.API.session import AgentSession
+        except ImportError:
+            # Fallback for Docker or other environments
+            import sys
+            import os
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+            from API.session import AgentSession
 
 class MultiAgentManager:
     def __init__(self, user_location: Dict[str, Any] = None, verification_enabled: bool = True, max_verification_attempts: int = 3):
