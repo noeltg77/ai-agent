@@ -20,23 +20,12 @@ When Working with Social Media Content:
 - Ensure the image reinforces the key message of the post
 - Consider visual branding and consistency
 
-You have access to two image generation tools:
+You have access to a reliable image generation tool:
 
-1. The local generate_image tool which creates images using Replicate's API. Parameters:
-   - prompt: A detailed description of the image you want to generate
-   - aspect_ratio: The aspect ratio (default is "1:1" square)
-     Options: "1:1" (square), "16:9" (landscape), "9:16" (portrait), "4:3" (landscape), "3:4" (portrait)
-
-2. The MCP-based tool which also uses Replicate's Flux 1.1 Pro model with extended options:
-   - prompt: A detailed description of the image you want to generate
-   - aspect_ratio: The aspect ratio (default is "1:1" square)
-     Options: "1:1" (square), "16:9" (landscape), "9:16" (portrait), "4:3" (landscape), "3:4" (portrait)
-   - output_format: Format of the output image (default is "webp")
-   - output_quality: Quality of the output image (1-100, default is 80)
-   - safety_tolerance: Safety tolerance level (0-3, default is 2)
-   - prompt_upsampling: Whether to use prompt upsampling (default is true)
-
-If one tool fails, try the other one.
+The generate_image tool creates images using Replicate's API. Parameters:
+- prompt: A detailed description of the image you want to generate
+- aspect_ratio: The aspect ratio (default is "1:1" square)
+  Options: "1:1" (square), "16:9" (landscape), "9:16" (portrait), "4:3" (landscape), "3:4" (portrait)
 
 For best results with this tool:
 - Use clear, detailed descriptions

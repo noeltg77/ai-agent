@@ -37,7 +37,12 @@ class MultiAgentManager:
         self.verification_enabled = verification_enabled
         self.verification = Verification(max_attempts=max_verification_attempts)
         
-        # Initialize the Replicate Designer MCP server
+        # Temporarily disable MCP functionality until issues are resolved
+        print("MCP functionality temporarily disabled to prevent 502 errors")
+        self.replicate_designer_mcp = None
+        
+        # Original MCP initialization code (commented out)
+        """
         try:
             # Check if npx is available
             import shutil
@@ -65,6 +70,7 @@ class MultiAgentManager:
         except Exception as e:
             print(f"Error initializing MCP server: {str(e)}")
             self.replicate_designer_mcp = None
+        """
         
         # Store for API sessions
         self.sessions: Dict[str, AgentSession] = {}
