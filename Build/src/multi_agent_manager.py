@@ -121,6 +121,47 @@ class MultiAgentManager:
             instructions=PromptLoader.get_prompt("summarizer_agent"),
         )
         
+        # Create longform content creation agents
+        self.content_outliner_agent = Agent(
+            name="content_outliner_agent",
+            instructions=PromptLoader.get_prompt("content_outliner_agent"),
+            tools=[WebSearchTool(user_location=user_location)]  # Add research capability
+        )
+        
+        self.copy_writer_agent = Agent(
+            name="copy_writer_agent",
+            instructions=PromptLoader.get_prompt("copy_writer_agent"),
+        )
+        
+        self.editor_agent = Agent(
+            name="editor_agent",
+            instructions=PromptLoader.get_prompt("editor_agent"),
+        )
+        
+        # Create the longform content orchestrator agent
+        self.long_form_content_agent = Agent(
+            name="long_form_content_agent",
+            instructions=PromptLoader.get_prompt("long_form_content_agent"),
+            tools=[
+                self.content_outliner_agent.as_tool(
+                    tool_name="create_content_outline",
+                    tool_description="Create a detailed, structured outline for longform content on a given topic.",
+                ),
+                self.copy_writer_agent.as_tool(
+                    tool_name="write_content",
+                    tool_description="Write comprehensive, engaging copy based on a provided content outline.",
+                ),
+                self.editor_agent.as_tool(
+                    tool_name="edit_content",
+                    tool_description="Review, edit, and refine content to ensure quality, accuracy, and adherence to requirements.",
+                ),
+                self.research_agent.as_tool(
+                    tool_name="research_topic",
+                    tool_description="Perform in-depth research on a topic to gather information for content creation.",
+                ),
+            ],
+        )
+        
         # Create the graphic designer agent with both MCP and local tools for better reliability
         try:
             if self.replicate_designer_mcp:
@@ -171,6 +212,10 @@ class MultiAgentManager:
                 self.summarizer_agent.as_tool(
                     tool_name="summarize",
                     tool_description="Use this tool to create concise summaries of research and social media content.",
+                ),
+                self.long_form_content_agent.as_tool(
+                    tool_name="create_longform_content",
+                    tool_description="Use this tool to generate comprehensive longform content like blog posts, articles, and reports with proper structure and formatting.",
                 ),
                 
                 # Verification tool from our SDK-style module

@@ -120,7 +120,7 @@ async def list_agents():
             {
                 "name": "orchestrator",
                 "description": "Coordinates all other agents and handles task delegation",
-                "tools": ["research", "create_social_media_content", "create_image", "summarize", "verify_content"]
+                "tools": ["research", "create_social_media_content", "create_image", "summarize", "create_longform_content", "verify_content"]
             },
             {
                 "name": "research",
@@ -136,6 +136,26 @@ async def list_agents():
                 "name": "graphic_designer",
                 "description": "Generates custom images based on descriptions",
                 "tools": ["generate_image (Replicate's API for image generation)"]
+            },
+            {
+                "name": "long_form_content",
+                "description": "Creates comprehensive longform content with proper structure",
+                "tools": ["create_content_outline", "write_content", "edit_content", "research_topic"]
+            },
+            {
+                "name": "content_outliner",
+                "description": "Creates detailed outlines for longform content",
+                "tools": ["web_search"]
+            },
+            {
+                "name": "copy_writer",
+                "description": "Produces comprehensive copy based on content outlines",
+                "tools": []
+            },
+            {
+                "name": "editor",
+                "description": "Reviews and refines content to ensure quality and accuracy",
+                "tools": []
             },
             {
                 "name": "verification",

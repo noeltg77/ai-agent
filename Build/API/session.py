@@ -31,6 +31,10 @@ class AgentSession:
     _social_media_agent: Optional[Agent] = None
     _graphic_designer_agent: Optional[Agent] = None
     _summarizer_agent: Optional[Agent] = None
+    _content_outliner_agent: Optional[Agent] = None
+    _copy_writer_agent: Optional[Agent] = None
+    _editor_agent: Optional[Agent] = None
+    _long_form_content_agent: Optional[Agent] = None
     _orchestrator_agent: Optional[Agent] = None
     _verification: Optional[Verification] = None
     
@@ -119,6 +123,65 @@ class AgentSession:
                 instructions=PromptLoader.get_prompt("summarizer_agent"),
             )
         return self._summarizer_agent
+        
+    @property
+    def content_outliner_agent(self) -> Agent:
+        """Lazy-load the content outliner agent."""
+        if self._content_outliner_agent is None:
+            self._content_outliner_agent = Agent(
+                name=f"content_outliner_agent_{self.session_id}",
+                instructions=PromptLoader.get_prompt("content_outliner_agent"),
+                tools=[WebSearchTool(user_location={"type": "approximate", "city": "San Francisco"})]
+            )
+        return self._content_outliner_agent
+        
+    @property
+    def copy_writer_agent(self) -> Agent:
+        """Lazy-load the copy writer agent."""
+        if self._copy_writer_agent is None:
+            self._copy_writer_agent = Agent(
+                name=f"copy_writer_agent_{self.session_id}",
+                instructions=PromptLoader.get_prompt("copy_writer_agent"),
+            )
+        return self._copy_writer_agent
+        
+    @property
+    def editor_agent(self) -> Agent:
+        """Lazy-load the editor agent."""
+        if self._editor_agent is None:
+            self._editor_agent = Agent(
+                name=f"editor_agent_{self.session_id}",
+                instructions=PromptLoader.get_prompt("editor_agent"),
+            )
+        return self._editor_agent
+        
+    @property
+    def long_form_content_agent(self) -> Agent:
+        """Lazy-load the long form content agent."""
+        if self._long_form_content_agent is None:
+            self._long_form_content_agent = Agent(
+                name=f"long_form_content_agent_{self.session_id}",
+                instructions=PromptLoader.get_prompt("long_form_content_agent"),
+                tools=[
+                    self.content_outliner_agent.as_tool(
+                        tool_name="create_content_outline",
+                        tool_description="Create a detailed, structured outline for longform content on a given topic.",
+                    ),
+                    self.copy_writer_agent.as_tool(
+                        tool_name="write_content",
+                        tool_description="Write comprehensive, engaging copy based on a provided content outline.",
+                    ),
+                    self.editor_agent.as_tool(
+                        tool_name="edit_content",
+                        tool_description="Review, edit, and refine content to ensure quality, accuracy, and adherence to requirements.",
+                    ),
+                    self.research_agent.as_tool(
+                        tool_name="research_topic",
+                        tool_description="Perform in-depth research on a topic to gather information for content creation.",
+                    ),
+                ],
+            )
+        return self._long_form_content_agent
     
     @property
     def verification(self) -> Verification:
@@ -150,6 +213,10 @@ class AgentSession:
                     self.summarizer_agent.as_tool(
                         tool_name="summarize",
                         tool_description="Use this tool to create concise summaries of research and social media content.",
+                    ),
+                    self.long_form_content_agent.as_tool(
+                        tool_name="create_longform_content",
+                        tool_description="Use this tool to generate comprehensive longform content like blog posts, articles, and reports with proper structure and formatting.",
                     ),
                     # Add the verification tool
                     self.verification.get_verify_function_tool(),
