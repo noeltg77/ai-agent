@@ -6,3 +6,4 @@ replicate>=0.23.0
 fastapi>=0.110.0
 uvicorn>=0.26.0
 pydantic>=2.6.0
+psutil>=5.9.0

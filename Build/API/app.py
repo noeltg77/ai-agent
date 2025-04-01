@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import asyncio
+import time
 from typing import Optional, Dict, Any, List, Union
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, Request, BackgroundTasks
@@ -52,16 +53,43 @@ PromptLoader.initialize()
 # Lifespan context manager for FastAPI to handle async initialization
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("=" * 50)
+    print("SERVER STARTUP: Initializing application")
+    
     # Initialize the MultiAgentManager with MCP server connections
-    global agent_manager
-    agent_manager = MultiAgentManager()
-    # Connect to all MCP servers
-    await agent_manager.__aenter__()
-    
-    yield
-    
-    # Shutdown and close MCP connections
-    await agent_manager.__aexit__(None, None, None)
+    try:
+        global agent_manager
+        print("Creating MultiAgentManager instance...")
+        agent_manager = MultiAgentManager()
+        print("MultiAgentManager created successfully")
+        
+        # Connect to all MCP servers
+        print("Connecting to MCP servers...")
+        await agent_manager.__aenter__()
+        print("MCP server connections established (or skipped if unavailable)")
+        
+        print("Server initialization complete!")
+        print("=" * 50)
+        
+        yield
+    except Exception as e:
+        print(f"ERROR DURING STARTUP: {str(e)}")
+        # Still yield to allow the app to start even with initialization errors
+        yield
+    finally:
+        print("=" * 50)
+        print("SERVER SHUTDOWN: Cleaning up resources")
+        
+        # Shutdown and close MCP connections
+        try:
+            if agent_manager:
+                await agent_manager.__aexit__(None, None, None)
+                print("MCP server connections closed successfully")
+        except Exception as e:
+            print(f"ERROR DURING SHUTDOWN: {str(e)}")
+        
+        print("Server shutdown complete")
+        print("=" * 50)
 
 # Create the application
 app = FastAPI(
@@ -71,13 +99,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
+# Add CORS middleware with detailed configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Adjust this in production to specific origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["X-Requested-With", "X-HTTP-Method-Override", "Content-Type", "Authorization", "Accept"],
+    expose_headers=["X-Total-Count", "Content-Range"],
+    max_age=86400,  # 24 hours in seconds
 )
 
 # Initialize global multi-agent manager for handling sessions
@@ -121,13 +151,37 @@ async def root():
             "/chat": "Chat with the multi-agent system",
             "/health": "Health check endpoint",
             "/agents": "List available agents",
+            "/debug": "Debug system information",
+            "/simplified-chat": "Simplified chat endpoint for debugging",
+            "/hello": "Simple hello world endpoint"
         }
     }
+
+@app.get("/hello")
+async def hello():
+    """Simplest possible endpoint for testing."""
+    return {"hello": "world", "time": str(time.time())}
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "api_key_configured": bool(api_key)}
+    return {"status": "healthy", "api_key_configured": bool(api_key), "timestamp": str(time.time())}
+
+@app.get("/debug")
+async def debug_info():
+    """Debug endpoint with detailed server information."""
+    import sys
+    import platform
+    import time
+    
+    return {
+        "status": "running",
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "api_key_configured": bool(api_key),
+        "timestamp": str(time.time()),
+        "paths": sys.path,
+    }
 
 @app.get("/agents")
 async def list_agents():
@@ -182,6 +236,21 @@ async def list_agents():
         ]
     }
 
+@app.post("/simplified-chat")
+async def simplified_chat(request: Request):
+    """Simplified chat endpoint for debugging."""
+    try:
+        body = await request.json()
+        print(f"DEBUG: Received request body: {body}")
+        return {
+            "status": "success",
+            "message": "This is a test response from the simplified chat endpoint",
+            "received": body
+        }
+    except Exception as e:
+        print(f"Error in simplified chat: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
 @app.post("/chat", response_model=SessionResponse)
 async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
     """
@@ -195,11 +264,19 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
     
     Returns the agent response and session details.
     """
-    # Use the provided session ID or generate a default one that's stable
-    # We need a stable, consistent session ID rather than a random one each time
-    session_id = request.session_id or "default_session"
-    # Log session ID for debugging
-    print(f"DEBUG: Using session ID: {session_id}")
+    print("=" * 50)
+    print("DEBUG: Chat endpoint called")
+    print(f"DEBUG: Request data: {request}")
+    
+    try:
+        # Use the provided session ID or generate a default one that's stable
+        # We need a stable, consistent session ID rather than a random one each time
+        session_id = request.session_id or "default_session"
+        # Log session ID for debugging
+        print(f"DEBUG: Using session ID: {session_id}")
+    except Exception as outer_e:
+        print(f"ERROR in chat outer block: {str(outer_e)}")
+        raise HTTPException(status_code=500, detail=f"Error in chat endpoint: {str(outer_e)}")
     
     # Get or create the agent session
     session = agent_manager.get_or_create_session(session_id)
