@@ -120,7 +120,7 @@ async def list_agents():
             {
                 "name": "orchestrator",
                 "description": "Coordinates all other agents and handles task delegation",
-                "tools": ["research", "create_social_media_content", "create_image", "summarize", "create_longform_content", "verify_content"]
+                "tools": ["research", "create_social_media_content", "create_image", "create_longform_content", "verify_content"]
             },
             {
                 "name": "research",
