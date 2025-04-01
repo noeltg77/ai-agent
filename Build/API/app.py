@@ -25,9 +25,20 @@ else:
 
 # Import after setting API key
 from agents import Agent, Runner, trace, gen_trace_id
-from src.prompt_loader import PromptLoader
-from src.multi_agent_manager import MultiAgentManager
-from src.verification_sdk import Verification
+
+# Handle imports for different environments
+try:
+    from src.prompt_loader import PromptLoader
+    from src.multi_agent_manager import MultiAgentManager
+    from src.verification_sdk import Verification
+except ImportError:
+    import sys
+    import os
+    # Add the parent directory to the path
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from src.prompt_loader import PromptLoader
+    from src.multi_agent_manager import MultiAgentManager
+    from src.verification_sdk import Verification
 
 # Initialize the prompt loader
 PromptLoader.initialize()
@@ -541,5 +552,5 @@ if __name__ == "__main__":
     # Get port from environment or use default
     port = int(os.getenv("PORT", 8000))
     
-    # Run with uvicorn
-    uvicorn.run("API.app:app", host="0.0.0.0", port=port, reload=True)
+    # Run with uvicorn - updated to work with the correct module structure
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)

@@ -21,8 +21,20 @@ from src.tools import get_current_time, calculate_days_between, format_data, gen
 from src.prompt_loader import PromptLoader
 from src.verification_sdk import Verification
 
-# Import this dynamically to avoid circular imports
-from API.session import AgentSession
+# Handle import for different environments
+try:
+    # Try direct import first (for development)
+    from API.session import AgentSession
+except ImportError:
+    try:
+        # Try relative import (for when API is a sibling package)
+        from ..API.session import AgentSession
+    except ImportError:
+        # Fallback for Docker or other environments
+        import sys
+        import os
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+        from API.session import AgentSession
 
 class MultiAgentManager:
     def __init__(self, user_location: Dict[str, Any] = None, verification_enabled: bool = True, max_verification_attempts: int = 3):

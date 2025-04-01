@@ -20,6 +20,8 @@ COPY . .
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PORT=8000
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Create .env file if it doesn't exist (will be overridden by environment variables)
 RUN touch .env
@@ -32,5 +34,5 @@ USER appuser
 # Expose the API port
 EXPOSE 8000
 
-# Run the API - note we are now running app.py directly as a module
-CMD ["python", "-m", "API.app"]
+# Run the API using uvicorn directly to the app
+CMD ["uvicorn", "API.app:app", "--host", "0.0.0.0", "--port", "8000"]
