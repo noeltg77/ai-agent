@@ -723,8 +723,23 @@ if __name__ == "__main__":
     print("=" * 80)
     print(f"Starting server on port {port}")
     print("App module path used for direct execution: app:app")
+    
+    # Check if we should use port 3000 (for Coolify) or default 8000
+    coolify_port = int(os.getenv("COOLIFY_PORT", "3000"))
+    if coolify_port != port:
+        print(f"WARNING: COOLIFY_PORT ({coolify_port}) differs from PORT ({port})")
+        print(f"Using PORT={port} for uvicorn but nginx will map to port {coolify_port}")
+    
     print("=" * 80)
     
     # Run with uvicorn - updated to work with the correct module structure
     # Use proper proxy header handling and allow any forwarded IPs for proxies
-    uvicorn.run("app:app", host="0.0.0.0", port=port, proxy_headers=True, forwarded_allow_ips="*")
+    uvicorn.run(
+        "app:app", 
+        host="0.0.0.0", 
+        port=port, 
+        proxy_headers=True, 
+        forwarded_allow_ips="*",
+        timeout_keep_alive=300,
+        access_log=True
+    )

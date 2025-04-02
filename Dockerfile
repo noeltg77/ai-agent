@@ -31,8 +31,9 @@ RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
-# Expose the API port
+# Expose both API port and the Coolify expected port
 EXPOSE 8000
+EXPOSE 3000
 
 # Install any missing packages to ensure we have everything
 RUN pip install -U uvicorn fastapi python-dotenv
