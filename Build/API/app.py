@@ -153,7 +153,8 @@ async def root():
             "/agents": "List available agents",
             "/debug": "Debug system information",
             "/simplified-chat": "Simplified chat endpoint for debugging",
-            "/hello": "Simple hello world endpoint"
+            "/hello": "Simple hello world endpoint",
+            "/dummy-chat": "Dummy chat endpoint that always returns a valid response"
         }
     }
 
@@ -161,6 +162,30 @@ async def root():
 async def hello():
     """Simplest possible endpoint for testing."""
     return {"hello": "world", "time": str(time.time())}
+
+@app.post("/dummy-chat")
+async def dummy_chat(request: Request):
+    """Fallback chat endpoint that always returns a valid response."""
+    import uuid
+    try:
+        body = await request.json()
+        input_text = "No input provided"
+        if isinstance(body, dict) and "input" in body:
+            input_text = body["input"]
+    except Exception:
+        input_text = "Error parsing request"
+    
+    # Return a response in the expected format
+    return {
+        "session_id": str(uuid.uuid4()),
+        "response": f"Dummy response to: {input_text}",
+        "verification_details": None,
+        "conversation_history": [
+            {"role": "user", "content": input_text},
+            {"role": "assistant", "content": f"Dummy response to: {input_text}"}
+        ],
+        "trace_id": None
+    }
 
 @app.get("/health")
 async def health_check():
@@ -242,10 +267,22 @@ async def simplified_chat(request: Request):
     try:
         body = await request.json()
         print(f"DEBUG: Received request body: {body}")
+        
+        # Check if we can extract input from the request
+        input_text = "No input provided"
+        if isinstance(body, dict) and "input" in body:
+            input_text = body["input"]
+            
+        # Create a simplified response that matches SessionResponse format
         return {
-            "status": "success",
-            "message": "This is a test response from the simplified chat endpoint",
-            "received": body
+            "session_id": "debug_session",
+            "response": f"This is a test response to your input: '{input_text}'",
+            "verification_details": None,
+            "conversation_history": [
+                {"role": "user", "content": input_text},
+                {"role": "assistant", "content": f"This is a test response to your input: '{input_text}'"}
+            ],
+            "trace_id": "debug_trace_123"
         }
     except Exception as e:
         print(f"Error in simplified chat: {str(e)}")
@@ -627,8 +664,21 @@ async def chat(request: SessionRequest, background_tasks: BackgroundTasks):
                 
         except Exception as e:
             # Log the error in the background to avoid blocking the response
-            background_tasks.add_task(print, f"Error processing request: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+            error_msg = f"Error processing request: {str(e)}"
+            background_tasks.add_task(print, error_msg)
+            
+            # Create a minimal valid response instead of throwing an exception
+            import uuid
+            return SessionResponse(
+                session_id=request.session_id or str(uuid.uuid4()),
+                response=f"I apologize, but I encountered an error processing your request. Please try again or contact support if the issue persists. Error details: {str(e)}",
+                verification_details=None,
+                conversation_history=[
+                    ConversationMessage(role="user", content=request.input),
+                    ConversationMessage(role="assistant", content="I apologize, but I encountered an error processing your request. Please try again.")
+                ],
+                trace_id=None
+            )
 
 # Run the application if executed directly
 if __name__ == "__main__":
