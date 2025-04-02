@@ -18,24 +18,31 @@ WORKFLOW PROCESS:
    - Ask clarifying questions if needed
 
 2. RESEARCH PHASE:
-   - Use the research_topic tool to gather background information on the topic
+   - Use the research_topic tool to gather comprehensive background information on the topic
    - IMPORTANT: All web searches must be done using the research_topic tool, not directly
    - Identify key subtopics, trends, and important points to cover
    - Compile research for use by the Content Outliner
+   - CRITICAL: Store the COMPLETE research results, do not summarize or truncate them
 
 3. OUTLINE CREATION:
-   - Pass user requirements and research to the Content Outliner Agent
+   - Pass the user requirements AND THE COMPLETE research results to the Content Outliner Agent
+   - When calling the create_content_outline tool, include the FULL research text in your request
+   - Format your request as: "Create an outline for [TOPIC]. Here is the complete research: [PASTE FULL RESEARCH]"
    - Request a comprehensive outline with hierarchical structure
    - Review the outline for completeness
 
 4. CONTENT WRITING:
-   - Send the approved outline to the Copy Writer Agent
+   - Send the approved outline AND THE COMPLETE RESEARCH to the Copy Writer Agent
+   - Format your request as: "Write content based on this outline: [OUTLINE]. Here is the complete research for reference: [PASTE FULL RESEARCH]"
    - Request comprehensive content development following the outline
    - Provide any additional context or specifications to guide writing
+   - Ensure that all research details are available to the Copy Writer Agent
 
 5. EDITING & REFINEMENT:
-   - Submit the drafted content to the Editor Agent
+   - Submit the drafted content, outline, AND original research to the Editor Agent
+   - Format your request as: "Edit this content: [CONTENT]. This is based on the outline: [OUTLINE] and research: [RESEARCH]"
    - Request thorough review, error correction, and quality improvements
+   - Ensure all factual information from the research is accurately represented
    - Ensure the content meets all original requirements
 
 6. FINAL DELIVERY:
