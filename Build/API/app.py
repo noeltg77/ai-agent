@@ -110,6 +110,41 @@ app.add_middleware(
     max_age=86400,  # 24 hours in seconds
 )
 
+# Add custom middleware for request/response logging and error handling
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    # Log the request
+    print(f"Request: {request.method} {request.url}")
+    
+    # Special handling for proxy headers
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        print(f"X-Forwarded-For: {forwarded_for}")
+    
+    # Process the request and catch any errors
+    try:
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        
+        # Log the response
+        print(f"Response: {response.status_code} (took {process_time:.4f}s)")
+        
+        return response
+    except Exception as e:
+        print(f"ERROR in middleware: {str(e)}")
+        from fastapi.responses import JSONResponse
+        
+        # Return a proper JSON response instead of crashing
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "message": str(e),
+                "path": str(request.url)
+            }
+        )
+
 # Initialize global multi-agent manager for handling sessions
 # We'll need to create it asynchronously to handle MCP connections
 agent_manager = None
@@ -685,5 +720,11 @@ if __name__ == "__main__":
     # Get port from environment or use default
     port = int(os.getenv("PORT", 8000))
     
+    print("=" * 80)
+    print(f"Starting server on port {port}")
+    print("App module path used for direct execution: app:app")
+    print("=" * 80)
+    
     # Run with uvicorn - updated to work with the correct module structure
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+    # Use proper proxy header handling and allow any forwarded IPs for proxies
+    uvicorn.run("app:app", host="0.0.0.0", port=port, proxy_headers=True, forwarded_allow_ips="*")

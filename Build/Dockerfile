@@ -34,5 +34,8 @@ USER appuser
 # Expose the API port
 EXPOSE 8000
 
-# Run the API using uvicorn directly to the app
-CMD ["uvicorn", "API.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Install any missing packages to ensure we have everything
+RUN pip install -U uvicorn fastapi python-dotenv
+
+# Run the API using uvicorn with the app in the current directory
+CMD ["uvicorn", "API.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
