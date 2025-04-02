@@ -132,7 +132,10 @@ class MultiAgentManager:
             ],
         )
         
-        # Summarizer agent removed
+        self.summarizer_agent = Agent(
+            name="summarizer_agent",
+            instructions=PromptLoader.get_prompt("summarizer_agent"),
+        )
         
         # Create longform content creation agents
         self.content_outliner_agent = Agent(
@@ -222,7 +225,10 @@ class MultiAgentManager:
                     tool_name="create_image",
                     tool_description="Use this tool to generate custom images based on detailed descriptions. Useful for creating visuals for social media posts.",
                 ),
-                # Summarizer agent tool removed
+                self.summarizer_agent.as_tool(
+                    tool_name="summarize",
+                    tool_description="Use this tool to create concise summaries of research and social media content.",
+                ),
                 self.long_form_content_agent.as_tool(
                     tool_name="create_longform_content",
                     tool_description="Use this tool to generate comprehensive longform content like blog posts, articles, and reports with proper structure and formatting.",
@@ -461,4 +467,51 @@ class MultiAgentManager:
             "success": has_image_url
         }
     
-    # Summarizer agent and related methods removed
+    async def run_parallel_summary(self, content: str, num_summaries: int = 3) -> str:
+        """
+        Run multiple summarizers in parallel and pick the best one.
+        
+        Args:
+            content: The content to summarize
+            num_summaries: Number of parallel summaries to generate
+            
+        Returns:
+            The selected best summary
+        """
+        print(f"Generating {num_summaries} parallel summaries...")
+        
+        # Generate tasks for parallel execution
+        tasks = [
+            asyncio.create_task(
+                Runner.run(
+                    self.summarizer_agent,
+                    f"Summarize the following content:\n\n{content}"
+                )
+            )
+            for _ in range(num_summaries)
+        ]
+        
+        # Execute all tasks in parallel
+        summaries = await asyncio.gather(*tasks)
+        
+        # Create a simple agent to select the best summary
+        selector_agent = Agent(
+            name="selector_agent",
+            instructions="You evaluate multiple summaries and select the best one based on clarity, accuracy, and conciseness.",
+        )
+        
+        # Format the summaries for the selector agent
+        formatted_summaries = "\n\n".join([
+            f"Summary {i+1}:\n{summary.final_output}"
+            for i, summary in enumerate(summaries)
+        ])
+        
+        input_for_selector = f"Original content:\n{content}\n\nPlease select the best summary from the following options:\n\n{formatted_summaries}"
+        
+        # Get the best summary
+        selection_result = await Runner.run(
+            selector_agent,
+            input_for_selector,
+        )
+        
+        return selection_result.final_output

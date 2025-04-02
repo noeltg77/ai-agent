@@ -46,7 +46,7 @@ class AgentSession:
     _instagram_agent: Optional[Agent] = None
     _social_media_agent: Optional[Agent] = None
     _graphic_designer_agent: Optional[Agent] = None
-    # Summarizer agent removed
+    _summarizer_agent: Optional[Agent] = None
     _content_outliner_agent: Optional[Agent] = None
     _copy_writer_agent: Optional[Agent] = None
     _editor_agent: Optional[Agent] = None
@@ -130,7 +130,15 @@ class AgentSession:
             )
         return self._graphic_designer_agent
     
-    # Summarizer agent property removed
+    @property
+    def summarizer_agent(self) -> Agent:
+        """Lazy-load the summarizer agent."""
+        if self._summarizer_agent is None:
+            self._summarizer_agent = Agent(
+                name=f"summarizer_agent_{self.session_id}",
+                instructions=PromptLoader.get_prompt("summarizer_agent"),
+            )
+        return self._summarizer_agent
         
     @property
     def content_outliner_agent(self) -> Agent:
@@ -218,7 +226,10 @@ class AgentSession:
                         tool_name="create_image",
                         tool_description="Use this tool to generate custom images based on detailed descriptions. Useful for creating visuals for social media posts.",
                     ),
-                    # Summarizer agent tool removed
+                    self.summarizer_agent.as_tool(
+                        tool_name="summarize",
+                        tool_description="Use this tool to create concise summaries of research and social media content.",
+                    ),
                     self.long_form_content_agent.as_tool(
                         tool_name="create_longform_content",
                         tool_description="Use this tool to generate comprehensive longform content like blog posts, articles, and reports with proper structure and formatting.",
