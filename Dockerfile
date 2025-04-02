@@ -19,7 +19,7 @@ COPY . .
 
 # Set environment variables
 ENV PYTHONPATH=/app
-ENV PORT=8000
+ENV PORT=3000
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -32,11 +32,11 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Expose both API port and the Coolify expected port
-EXPOSE 8000
+
 EXPOSE 3000
 
 # Install any missing packages to ensure we have everything
 RUN pip install -U uvicorn fastapi python-dotenv
 
 # Run the API using uvicorn with explicit proxy settings
-CMD ["uvicorn", "Build.API.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["uvicorn", "Build.API.app:app", "--host", "0.0.0.0", "--port", "3000", "--proxy-headers", "--forwarded-allow-ips=*"]
