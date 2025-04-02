@@ -18,7 +18,8 @@ WORKFLOW PROCESS:
    - Ask clarifying questions if needed
 
 2. RESEARCH PHASE:
-   - Gather background information on the topic
+   - Use the research_topic tool to gather background information on the topic
+   - IMPORTANT: All web searches must be done using the research_topic tool, not directly
    - Identify key subtopics, trends, and important points to cover
    - Compile research for use by the Content Outliner
 
